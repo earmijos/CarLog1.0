@@ -357,8 +357,78 @@ def _create_tables_inline():
         conn.executescript(schema)
         conn.commit()
         logger.info("All tables created successfully")
+        
+        # Add sample vehicles
+        _seed_sample_data(conn)
+        
     except Exception as e:
         logger.error(f"Error creating tables: {e}")
         raise
     finally:
         conn.close()
+
+
+def _seed_sample_data(conn):
+    """Add sample vehicles and data for demo."""
+    # Check if already seeded
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM vehicles")
+    if cursor.fetchone()[0] > 0:
+        return
+    
+    # Sample vehicles
+    vehicles = [
+        ('1HGCM82633A004352', 2020, 'Honda', 'Civic', 'EX', 'Gas', 'Silver', 45000),
+        ('WBAJ71M202A123456', 2021, 'BMW', '3 Series', '330i', 'Gas', 'Black', 28000),
+        ('1F1J7J2033A123456', 2019, 'Hyundai', 'Elantra', 'SEL', 'Gas', 'White', 62000),
+        ('1F1J7J2033A123457', 2022, 'Toyota', 'Camry', 'LE', 'Gas', 'Blue', 35000),
+        ('1T3CHJ6033A123456', 2018, 'Tesla', 'Model 3', 'Long Range', 'Electric', 'Red', 78000),
+        ('1N3CHJ3033A123456', 2023, 'Nissan', 'Altima', 'SV', 'Gas', 'Gray', 15000),
+        ('1N5KJ62F25A123456', 2020, 'Ford', 'F-150', 'XLT', 'Gas', 'White', 52000),
+        ('2HGCG225X8A123456', 2021, 'Chevrolet', 'Malibu', 'LT', 'Gas', 'Black', 41000),
+        ('WDCV21M423A123456', 2022, 'Mercedes-Benz', 'C-Class', 'C300', 'Gas', 'Silver', 33000),
+        ('5YFBURHE5HP123456', 2019, 'Toyota', 'Corolla', 'SE', 'Gas', 'Blue', 55000),
+    ]
+    
+    for v in vehicles:
+        cursor.execute('''
+            INSERT OR IGNORE INTO vehicles (vin, year, make, model, trim, engine_type, color, current_mileage)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', v)
+    
+    # Sample maintenance intervals for first vehicle
+    maintenance = [
+        ('1HGCM82633A004352', 'Oil Change', 5000, 6, 42000, '2024-08-15'),
+        ('1HGCM82633A004352', 'Tire Rotation', 7500, 6, 40000, '2024-07-01'),
+        ('1HGCM82633A004352', 'Brake Inspection', 15000, 12, 40000, '2024-06-01'),
+        ('1HGCM82633A004352', 'Air Filter', 15000, 12, 35000, '2024-03-01'),
+        ('WBAJ71M202A123456', 'Oil Change', 7500, 12, 24000, '2024-10-01'),
+        ('WBAJ71M202A123456', 'Brake Inspection', 20000, 24, 20000, '2024-05-01'),
+        ('1F1J7J2033A123456', 'Oil Change', 5000, 6, 58000, '2024-09-01'),
+        ('1F1J7J2033A123456', 'Transmission Fluid', 30000, 36, 35000, '2023-06-01'),
+    ]
+    
+    for m in maintenance:
+        cursor.execute('''
+            INSERT OR IGNORE INTO maintenance_intervals 
+            (vin, service_type, interval_miles, interval_months, last_performed_mileage, last_performed_date)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', m)
+    
+    # Sample repairs
+    repairs = [
+        ('1HGCM82633A004352', 'Oil Change', 45.99, 42000, '2024-08-15'),
+        ('1HGCM82633A004352', 'Brake Pads Replacement', 289.00, 40000, '2024-06-01'),
+        ('1HGCM82633A004352', 'Tire Rotation', 25.00, 40000, '2024-07-01'),
+        ('WBAJ71M202A123456', 'Oil Change', 89.99, 24000, '2024-10-01'),
+        ('1F1J7J2033A123456', 'Battery Replacement', 185.00, 55000, '2024-04-15'),
+    ]
+    
+    for r in repairs:
+        cursor.execute('''
+            INSERT OR IGNORE INTO repairs (vin, service, cost, mileage, date)
+            VALUES (?, ?, ?, ?, ?)
+        ''', r)
+    
+    conn.commit()
+    logger.info("Sample data seeded successfully")
