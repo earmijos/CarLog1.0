@@ -246,7 +246,10 @@ def ensure_initialized():
     """
     if not os.path.exists(DB_PATH) or not table_exists('vehicles'):
         logger.warning("Database not initialized. Running initialization...")
-        from init_db import init_database
+        try:
+            from db.init_db import init_database
+        except ImportError:
+            from .init_db import init_database
         init_database(seed_data=True)
         logger.info("Database initialized successfully")
     return True
