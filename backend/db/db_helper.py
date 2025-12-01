@@ -244,15 +244,44 @@ def ensure_initialized():
     Ensure the database is initialized.
     Call this on app startup.
     """
-    if not os.path.exists(DB_PATH) or not table_exists('vehicles'):
+    needs_full_init = not os.path.exists(DB_PATH) or not table_exists('vehicles')
+    
+    if needs_full_init:
         logger.warning("Database not initialized. Creating tables...")
         _create_tables_inline()
         logger.info("Database initialized successfully")
     else:
-        # Check if we need to seed data
+        # Check if maintenance_intervals has required columns
         conn = get_connection()
         try:
             cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(maintenance_intervals)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'next_due_mileage' not in columns:
+                logger.warning("Upgrading maintenance_intervals table...")
+                cursor.execute("DROP TABLE IF EXISTS maintenance_intervals")
+                cursor.execute('''
+                    CREATE TABLE maintenance_intervals (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        vin TEXT NOT NULL,
+                        service_type TEXT NOT NULL,
+                        interval_miles INTEGER,
+                        interval_months INTEGER,
+                        last_performed_mileage INTEGER,
+                        last_performed_date TEXT,
+                        next_due_mileage INTEGER,
+                        next_due_date TEXT,
+                        is_custom INTEGER DEFAULT 0,
+                        notes TEXT,
+                        created_at TEXT DEFAULT (datetime('now')),
+                        updated_at TEXT DEFAULT (datetime('now'))
+                    )
+                ''')
+                conn.commit()
+                logger.info("Table upgraded")
+            
+            # Check if we need to seed data
             cursor.execute("SELECT COUNT(*) FROM vehicles")
             count = cursor.fetchone()[0]
             if count == 0:
@@ -328,6 +357,9 @@ def _create_tables_inline():
         interval_months INTEGER,
         last_performed_mileage INTEGER,
         last_performed_date TEXT,
+        next_due_mileage INTEGER,
+        next_due_date TEXT,
+        is_custom INTEGER DEFAULT 0,
         notes TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
@@ -408,23 +440,28 @@ def _seed_sample_data(conn):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', v)
     
-    # Sample maintenance intervals for first vehicle
+    # Sample maintenance intervals for vehicles
+    # (vin, service_type, interval_miles, interval_months, last_mileage, last_date, next_due_mileage)
     maintenance = [
-        ('1HGCM82633A004352', 'Oil Change', 5000, 6, 42000, '2024-08-15'),
-        ('1HGCM82633A004352', 'Tire Rotation', 7500, 6, 40000, '2024-07-01'),
-        ('1HGCM82633A004352', 'Brake Inspection', 15000, 12, 40000, '2024-06-01'),
-        ('1HGCM82633A004352', 'Air Filter', 15000, 12, 35000, '2024-03-01'),
-        ('WBAJ71M202A123456', 'Oil Change', 7500, 12, 24000, '2024-10-01'),
-        ('WBAJ71M202A123456', 'Brake Inspection', 20000, 24, 20000, '2024-05-01'),
-        ('1F1J7J2033A123456', 'Oil Change', 5000, 6, 58000, '2024-09-01'),
-        ('1F1J7J2033A123456', 'Transmission Fluid', 30000, 36, 35000, '2023-06-01'),
+        ('1HGCM82633A004352', 'Oil Change', 5000, 6, 42000, '2024-08-15', 47000),
+        ('1HGCM82633A004352', 'Tire Rotation', 7500, 6, 40000, '2024-07-01', 47500),
+        ('1HGCM82633A004352', 'Brake Inspection', 15000, 12, 40000, '2024-06-01', 55000),
+        ('1HGCM82633A004352', 'Air Filter', 15000, 12, 35000, '2024-03-01', 50000),
+        ('WBAJ71M202A123456', 'Oil Change', 7500, 12, 24000, '2024-10-01', 31500),
+        ('WBAJ71M202A123456', 'Brake Inspection', 20000, 24, 20000, '2024-05-01', 40000),
+        ('1F1J7J2033A123456', 'Oil Change', 5000, 6, 58000, '2024-09-01', 63000),
+        ('1F1J7J2033A123456', 'Transmission Fluid', 30000, 36, 35000, '2023-06-01', 65000),
+        ('1F1J7J2033A123457', 'Oil Change', 5000, 6, 32000, '2024-10-01', 37000),
+        ('1T3CHJ6033A123456', 'Tire Rotation', 10000, 12, 70000, '2024-07-01', 80000),
+        ('1N3CHJ3033A123456', 'Oil Change', 5000, 6, 12000, '2024-11-01', 17000),
+        ('5YFBURHE5HP123456', 'Oil Change', 5000, 6, 52000, '2024-08-01', 57000),
     ]
     
     for m in maintenance:
         cursor.execute('''
             INSERT OR IGNORE INTO maintenance_intervals 
-            (vin, service_type, interval_miles, interval_months, last_performed_mileage, last_performed_date)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (vin, service_type, interval_miles, interval_months, last_performed_mileage, last_performed_date, next_due_mileage)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', m)
     
     # Sample repairs
