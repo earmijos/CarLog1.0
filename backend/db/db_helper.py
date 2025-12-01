@@ -245,11 +245,120 @@ def ensure_initialized():
     Call this on app startup.
     """
     if not os.path.exists(DB_PATH) or not table_exists('vehicles'):
-        logger.warning("Database not initialized. Running initialization...")
-        try:
-            from db.init_db import init_database
-        except ImportError:
-            from .init_db import init_database
-        init_database(seed_data=True)
+        logger.warning("Database not initialized. Creating tables...")
+        _create_tables_inline()
         logger.info("Database initialized successfully")
     return True
+
+
+def _create_tables_inline():
+    """Create all required tables inline (no import dependencies)."""
+    schema = '''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS vehicles (
+        vin TEXT PRIMARY KEY,
+        year INTEGER NOT NULL,
+        make TEXT NOT NULL,
+        model TEXT NOT NULL,
+        trim TEXT,
+        engine_type TEXT,
+        color TEXT,
+        purchase_date TEXT,
+        purchase_price REAL,
+        current_mileage INTEGER DEFAULT 0,
+        user_id INTEGER,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS repairs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vin TEXT NOT NULL,
+        service TEXT NOT NULL,
+        description TEXT,
+        cost REAL NOT NULL DEFAULT 0,
+        mileage INTEGER,
+        date TEXT NOT NULL,
+        shop_name TEXT,
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS fuel_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vin TEXT NOT NULL,
+        gallons REAL NOT NULL,
+        price_per_gallon REAL NOT NULL,
+        total_cost REAL NOT NULL,
+        odometer INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        station TEXT,
+        fuel_type TEXT DEFAULT 'Regular',
+        full_tank INTEGER DEFAULT 1,
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS maintenance_intervals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vin TEXT NOT NULL,
+        service_type TEXT NOT NULL,
+        interval_miles INTEGER,
+        interval_months INTEGER,
+        last_performed_mileage INTEGER,
+        last_performed_date TEXT,
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS mileage_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vin TEXT NOT NULL,
+        mileage INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        source TEXT DEFAULT 'manual',
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS trips (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vin TEXT NOT NULL,
+        start_location TEXT,
+        end_location TEXT,
+        distance REAL NOT NULL,
+        date TEXT NOT NULL,
+        purpose TEXT,
+        is_business INTEGER DEFAULT 0,
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
+    '''
+    
+    conn = get_connection()
+    try:
+        conn.executescript(schema)
+        conn.commit()
+        logger.info("All tables created successfully")
+    except Exception as e:
+        logger.error(f"Error creating tables: {e}")
+        raise
+    finally:
+        conn.close()
