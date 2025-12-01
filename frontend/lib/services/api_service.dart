@@ -72,9 +72,13 @@ class ApiService {
       final response = await _client.get(
         _buildUri(path, queryParams),
         headers: _headers,
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw ApiException('Request timed out'),
       );
       return _handleResponse(response);
     } catch (e) {
+      if (e is ApiException) rethrow;
       throw ApiException('Network error: $e');
     }
   }
@@ -85,9 +89,13 @@ class ApiService {
         _buildUri(path),
         headers: _headers,
         body: json.encode(body),
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw ApiException('Request timed out'),
       );
       return _handleResponse(response);
     } catch (e) {
+      if (e is ApiException) rethrow;
       throw ApiException('Network error: $e');
     }
   }

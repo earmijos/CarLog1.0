@@ -15,7 +15,10 @@ class VinDecoderService {
 
     try {
       final url = Uri.parse('$_baseUrl/decodevin/$vin?format=json');
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception('VIN lookup timed out'),
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
