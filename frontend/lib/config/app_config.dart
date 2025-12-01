@@ -7,7 +7,7 @@ class AppConfig {
   // For local development: 'http://127.0.0.1:5000'
   // For production: 'https://your-backend-url.onrender.com'
   //
-  static const String apiBaseUrl = 'http://127.0.0.1:5000';
+  static const String apiBaseUrl = 'https://carlog-api.onrender.com';
   
   // App info
   static const String appName = 'CarLog';
