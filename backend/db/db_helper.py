@@ -248,6 +248,18 @@ def ensure_initialized():
         logger.warning("Database not initialized. Creating tables...")
         _create_tables_inline()
         logger.info("Database initialized successfully")
+    else:
+        # Check if we need to seed data
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM vehicles")
+            count = cursor.fetchone()[0]
+            if count == 0:
+                logger.info("No vehicles found, seeding sample data...")
+                _seed_sample_data(conn)
+        finally:
+            conn.close()
     return True
 
 
