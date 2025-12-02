@@ -1,0 +1,13 @@
+# Netlify configuration for CarLog Flutter web app
+# The Flutter app is pre-built and stored in frontend/build/web
+
+[build]
+  publish = "frontend/build/web"
+  command = "echo 'Deploying pre-built Flutter web app'"
+
+# Handle client-side routing for Flutter
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
