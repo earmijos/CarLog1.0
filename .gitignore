@@ -6,6 +6,7 @@ node_modules/
 
 # Flutter/Dart
 frontend/build/
+!frontend/build/web/
 frontend/.dart_tool/
 frontend/.packages
 frontend/.flutter-plugins

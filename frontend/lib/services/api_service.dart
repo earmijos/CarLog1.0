@@ -178,7 +178,12 @@ class ApiService {
   /// Create a new vehicle
   Future<Vehicle> createVehicle(Vehicle vehicle) async {
     final response = await _post('/vehicles', vehicle.toJson());
-    return Vehicle.fromJson(response['data']);
+    final data = response['data'];
+    if (data == null) {
+      // If no data returned, return the vehicle we sent
+      return vehicle;
+    }
+    return Vehicle.fromJson(data);
   }
 
   /// Update a vehicle

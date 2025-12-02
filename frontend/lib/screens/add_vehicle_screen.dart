@@ -825,15 +825,36 @@ class _AddVehicleScreenWithDataState extends State<AddVehicleScreenWithData> {
   Future<void> _submitVehicle() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate required fields
+    if (widget.vin.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('VIN is required')),
+      );
+      return;
+    }
+    if (widget.make.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Make is required')),
+      );
+      return;
+    }
+    if (widget.model.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Model is required')),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
+      final parsedYear = int.tryParse(widget.year);
       final vehicle = Vehicle(
-        vin: widget.vin,
-        year: int.tryParse(widget.year) ?? DateTime.now().year,
-        make: widget.make,
-        model: widget.model,
-        trim: widget.trim.isEmpty ? null : widget.trim,
+        vin: widget.vin.trim().toUpperCase(),
+        year: parsedYear ?? DateTime.now().year,
+        make: widget.make.trim(),
+        model: widget.model.trim(),
+        trim: widget.trim.trim().isEmpty ? null : widget.trim.trim(),
         color: _colorController.text.trim().isEmpty ? null : _colorController.text.trim(),
         currentMileage: int.tryParse(_mileageController.text) ?? 0,
       );
@@ -847,7 +868,7 @@ class _AddVehicleScreenWithDataState extends State<AddVehicleScreenWithData> {
               children: [
                 const Icon(Icons.check_circle_rounded, color: Colors.white),
                 const SizedBox(width: 12),
-                Text('${vehicle.displayName} added to garage!'),
+                Expanded(child: Text('${vehicle.displayName} added to garage!')),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -857,9 +878,15 @@ class _AddVehicleScreenWithDataState extends State<AddVehicleScreenWithData> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Failed to add vehicle';
+        if (e.toString().contains('Network error')) {
+          errorMessage = 'Network error. Check your connection.';
+        } else if (e.toString().contains('timed out')) {
+          errorMessage = 'Request timed out. Try again.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(errorMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
