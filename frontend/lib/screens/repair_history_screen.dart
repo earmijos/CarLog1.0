@@ -35,7 +35,7 @@ class _RepairHistoryScreenState extends State<RepairHistoryScreen>
     super.dispose();
   }
 
-  Future<void> _fetchRepairs() async {
+  Future<void> _fetchRepairs({int retryCount = 0}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -43,6 +43,7 @@ class _RepairHistoryScreenState extends State<RepairHistoryScreen>
 
     try {
       final repairs = await _apiService.getRepairsByVinLegacy(widget.vin);
+      if (!mounted) return;
       setState(() {
         _repairs = repairs;
         _isLoading = false;
@@ -50,9 +51,19 @@ class _RepairHistoryScreenState extends State<RepairHistoryScreen>
       _animationController.reset();
       _animationController.forward();
     } catch (e) {
+      // Retry once
+      if (retryCount < 1) {
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          return _fetchRepairs(retryCount: retryCount + 1);
+        }
+        return;
+      }
+      
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load repair history';
+        _errorMessage = 'Failed to load repair history. Tap retry to try again.';
       });
     }
   }

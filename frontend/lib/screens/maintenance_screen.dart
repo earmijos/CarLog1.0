@@ -35,7 +35,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({int retryCount = 0}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -43,15 +43,27 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
 
     try {
       final schedule = await _apiService.getMaintenanceSchedule(widget.vin);
+      if (!mounted) return;
       setState(() {
         _schedule = schedule;
         _isLoading = false;
       });
+      _animationController.reset();
       _animationController.forward();
     } catch (e) {
+      // Retry once
+      if (retryCount < 1) {
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          return _loadData(retryCount: retryCount + 1);
+        }
+        return;
+      }
+      
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load maintenance data';
+        _errorMessage = 'Failed to load maintenance data. Tap retry to try again.';
       });
     }
   }

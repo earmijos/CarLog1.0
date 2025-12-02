@@ -48,11 +48,11 @@ class _CarInfoScreenState extends State<CarInfoScreen>
     super.dispose();
   }
 
-  Future<void> _fetchVehicleData() async {
+  Future<void> _fetchVehicleData({int retryCount = 0}) async {
     // First try local database
     try {
       final data = await _apiService.getVehicleByVinLegacy(widget.vin);
-      if (data != null) {
+      if (data != null && mounted) {
         setState(() {
           _vehicleData = data;
           _isLoading = false;
@@ -62,13 +62,20 @@ class _CarInfoScreenState extends State<CarInfoScreen>
         return;
       }
     } catch (e) {
-      // Local lookup failed, try NHTSA
+      // Local lookup failed - retry or try NHTSA
+      if (retryCount < 1) {
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          return _fetchVehicleData(retryCount: retryCount + 1);
+        }
+        return;
+      }
     }
 
-    // Try NHTSA VIN decoder
+    // Try NHTSA VIN decoder as fallback
     try {
       final nhtsaResult = await VinDecoderService.decodeVin(widget.vin);
-      if (nhtsaResult != null && nhtsaResult.isValid) {
+      if (nhtsaResult != null && nhtsaResult.isValid && mounted) {
         setState(() {
           _nhtsaData = nhtsaResult;
           _vehicleData = {
@@ -95,10 +102,12 @@ class _CarInfoScreenState extends State<CarInfoScreen>
     }
 
     // Neither worked
-    setState(() {
-      _isLoading = false;
-      _errorMessage = 'Vehicle not found';
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Vehicle not found. Please check the VIN and try again.';
+      });
+    }
   }
 
   void _navigateToScreen(Widget screen) {

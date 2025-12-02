@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({int retryCount = 0}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -43,19 +43,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     try {
       final vehicles = await _apiService.getAllVehiclesSummary();
-      final user = await _apiService.getDefaultUser();
-      final stats = await _apiService.getUserStats(user.id);
+      
+      // Stats are optional - don't fail if they don't load
+      UserStats? stats;
+      try {
+        final user = await _apiService.getDefaultUser();
+        stats = await _apiService.getUserStats(user.id);
+      } catch (_) {
+        // Stats failed, continue without them
+      }
 
+      if (!mounted) return;
+      
       setState(() {
         _vehicles = vehicles;
         _userStats = stats;
         _isLoading = false;
       });
+      _animationController.reset();
       _animationController.forward();
     } catch (e) {
+      // Retry up to 2 times with delay
+      if (retryCount < 2) {
+        await Future.delayed(Duration(seconds: retryCount + 1));
+        if (mounted) {
+          return _loadData(retryCount: retryCount + 1);
+        }
+      }
+      
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load data. Is the server running?';
+        _errorMessage = 'Unable to connect. Please check your connection and try again.';
       });
     }
   }
